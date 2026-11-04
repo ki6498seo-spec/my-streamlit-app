@@ -83,36 +83,72 @@ if st.button("🌐 번역하기"):
 # 번역 결과
 translated_text = response.output_text
 
-st.subheader("🌍 번역 결과")
-st.write(translated_text)
+# 번역 실행
+if st.button("🌐 번역하기"):
 
-# 번역 결과를 세션에 저장
-st.session_state["translated_text"] = translated_text
+    if not text.strip():
+        st.warning("번역할 문장을 입력해 주세요.")
 
-# TTS 음성 생성
-st.subheader("🔊 번역 음성 듣기")
+    else:
+        prompt = f"""
+        다음 문장을 번역해 주세요.
 
-try:
-    with st.spinner("에이블이 음성을 생성하고 있습니다..."):
-        speech = client.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input=translated_text,
-            response_format="mp3"
-        )
+        [원문]
+        {text}
 
-    audio_bytes = speech.content
+        [번역 언어]
+        {language}
 
-    # Streamlit 오디오 플레이어
-    st.audio(audio_bytes, format="audio/mp3")
+        [번역 스타일]
+        {style}
+        """
 
-    # 음성 파일 다운로드
-    st.download_button(
-        label="📥 번역 음성 다운로드",
-        data=audio_bytes,
-        file_name="able_translation.mp3",
-        mime="audio/mpeg"
-    )
+        try:
+            with st.spinner("에이블이 번역 중입니다..."):
+                response = client.responses.create(
+                    model="gpt-4o-mini",
+                    input=[
+                        {"role": "system", "content": sys_role},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
 
-except Exception as e:
-    st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
+            translated_text = response.output_text
+
+            st.success("번역 완료!")
+            st.write("**원문:**", text)
+            st.write("**번역 언어:**", language)
+            st.write("**번역 스타일:**", style)
+
+            st.subheader("🌍 번역 결과")
+            st.write(translated_text)
+
+            # TTS 음성 생성
+            st.subheader("🔊 번역 음성 듣기")
+
+            try:
+                with st.spinner("음성을 생성하고 있습니다..."):
+                    speech = client.audio.speech.create(
+                        model="tts-1",
+                        voice="alloy",
+                        input=translated_text,
+                        response_format="mp3"
+                    )
+
+                audio_bytes = speech.content
+
+                st.audio(audio_bytes, format="audio/mp3")
+
+                st.download_button(
+                    label="📥 음성 다운로드",
+                    data=audio_bytes,
+                    file_name="able_translation.mp3",
+                    mime="audio/mpeg"
+                )
+
+            except Exception as e:
+                st.warning(f"음성 생성 실패: {e}")
+
+        except Exception as e:
+            st.error(f"번역 중 오류가 발생했습니다: {e}")
+
