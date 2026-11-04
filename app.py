@@ -94,3 +94,105 @@ if result is not None:
             file_name="able_translation.mp3",
             mime="audio/mpeg",
         )
+
+
+
+
+
+
+
+
+
+
+
+# ===================================
+# 🎙️ 에이블 한국어 음성 → 영어 번역 → TTS
+# ===================================
+
+import io
+
+st.divider()
+st.header("🎙️ AI 음성 영어 번역기")
+
+st.write("한국어로 녹음하면 영어로 번역하고 음성으로 읽어줍니다.")
+
+# 마이크 녹음
+voice_audio = st.audio_input("🎤 한국어로 말해보세요", key="english_voice")
+
+# 녹음 파일 업로드도 지원
+voice_upload = st.file_uploader(
+    "또는 녹음 파일 업로드",
+    type=["wav", "mp3", "m4a", "webm"],
+    key="english_upload"
+)
+
+audio_source = voice_upload if voice_upload is not None else voice_audio
+
+if audio_source is not None:
+    st.audio(audio_source)
+
+    if st.button("🌍 영어로 번역하고 음성 만들기"):
+        try:
+            # 1. 음성을 한국어 텍스트로 변환
+            with st.spinner("음성 인식 중..."):
+                audio_bytes = audio_source.getvalue()
+
+                transcript = client.audio.transcriptions.create(
+                    model="whisper-1",
+                    file=(audio_source.name, audio_bytes),
+                    language="ko"
+                )
+
+                korean_text = transcript.text
+
+            st.subheader("📝 인식된 한국어")
+            st.write(korean_text)
+
+            # 2. 한국어를 영어로 번역
+            with st.spinner("영어로 번역 중..."):
+                translation = client.responses.create(
+                    model="gpt-4o-mini",
+                    input=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "당신은 전문 영어 번역가입니다. "
+                                "한국어를 자연스러운 영어로 번역하세요. "
+                                "번역된 영어 문장만 출력하세요."
+                            )
+                        },
+                        {
+                            "role": "user",
+                            "content": korean_text
+                        }
+                    ]
+                )
+
+                english_text = translation.output_text.strip()
+
+            st.subheader("🌍 영어 번역 결과")
+            st.write(english_text)
+
+            # 3. 영어 TTS 생성
+            with st.spinner("영어 음성 생성 중..."):
+                speech = client.audio.speech.create(
+                    model="tts-1",
+                    voice="alloy",
+                    input=english_text,
+                    response_format="mp3"
+                )
+
+                english_audio = speech.content
+
+            st.subheader("🔊 영어 음성 듣기")
+            st.audio(english_audio, format="audio/mp3")
+
+            st.download_button(
+                "📥 영어 음성 다운로드",
+                data=english_audio,
+                file_name="able_english_translation.mp3",
+                mime="audio/mpeg"
+            )
+
+        except Exception as e:
+            st.error(f"처리 중 오류가 발생했습니다: {e}")
