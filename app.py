@@ -1,4 +1,4 @@
-
+from io import BytesIO
 import os, base64, json, requests
 import streamlit as st
 from openai import OpenAI
@@ -80,8 +80,39 @@ if st.button("🌐 번역하기"):
             st.write("**번역 언어:**", language)
             st.write("**번역 스타일:**", style)
 
-            st.subheader("번역 결과")
-            st.write(response.output_text)
+# 번역 결과
+translated_text = response.output_text
 
-        except Exception as e:
-            st.error(f"번역 중 오류가 발생했습니다: {e}")
+st.subheader("🌍 번역 결과")
+st.write(translated_text)
+
+# 번역 결과를 세션에 저장
+st.session_state["translated_text"] = translated_text
+
+# TTS 음성 생성
+st.subheader("🔊 번역 음성 듣기")
+
+try:
+    with st.spinner("에이블이 음성을 생성하고 있습니다..."):
+        speech = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=translated_text,
+            response_format="mp3"
+        )
+
+    audio_bytes = speech.content
+
+    # Streamlit 오디오 플레이어
+    st.audio(audio_bytes, format="audio/mp3")
+
+    # 음성 파일 다운로드
+    st.download_button(
+        label="📥 번역 음성 다운로드",
+        data=audio_bytes,
+        file_name="able_translation.mp3",
+        mime="audio/mpeg"
+    )
+
+except Exception as e:
+    st.error(f"음성 생성 중 오류가 발생했습니다: {e}")
